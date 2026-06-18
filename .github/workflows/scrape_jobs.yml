@@ -2,18 +2,18 @@ name: Job Scraper à 12h (France)
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Déclenché **toutes les heures** (pour vérifier l'heure locale)
-  workflow_dispatch:      # Lance manuellement si besoin
+    - cron: '0 * * * *'  # Toutes les heures
+  workflow_dispatch:
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.1  # ✅ Dernière version (compatible Node.js 24)
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.0.0  # ✅ Dernière version (compatible Node.js 24)
         with:
           python-version: '3.11'
 
@@ -23,10 +23,8 @@ jobs:
       - name: Check if it's 12:00 in Paris
         id: time_check
         run: |
-          # Installe le fuseau horaire Europe/Paris
           sudo apt-get update -y && sudo apt-get install -y tzdata
           sudo ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime
-          # Vérifie si l'heure actuelle à Paris est 12:00
           CURRENT_TIME=$(TZ=Europe/Paris date +%H:%M)
           if [ "$CURRENT_TIME" = "12:00" ]; then
             echo "run=true" >> $GITHUB_OUTPUT

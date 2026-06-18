@@ -32,7 +32,8 @@ from urllib.parse import urlencode, quote_plus
 
 RECIPIENT_EMAIL = "matteo.hudry@gmail.com"
 SENDER_EMAIL    = "matteo.hudry@gmail.com"
-SMTP_PASSWORD   = "tumb xjkt ykvh sdgq"
+import os
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 
 KEYWORDS = [
     "contrôleur de gestion",
@@ -465,15 +466,4 @@ def daily_job() -> None:
 # ──────────────────────────────────────────────
 
 if __name__ == "__main__":
-    log.info("Script démarré. Email quotidien programmé à 12h00.")
-
-    # Lancement immédiat au démarrage pour tester
-    log.info("Exécution immédiate au démarrage…")
     daily_job()
-
-    # Puis chaque jour à midi
-    schedule.every().day.at("12:00").do(daily_job)
-
-    while True:
-        schedule.run_pending()
-        time.sleep(60)

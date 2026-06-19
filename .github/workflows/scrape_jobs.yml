@@ -4,8 +4,6 @@ on:
   schedule:
     # 10h UTC = 12h en été (UTC+2)
     - cron: '0 10 * * *'
-    # 11h UTC = 12h en hiver (UTC+1)
-    - cron: '0 11 * * *'
   workflow_dispatch:  # Pour lancer manuellement
 
 jobs:

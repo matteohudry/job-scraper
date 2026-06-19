@@ -48,7 +48,7 @@ KEYWORDS = [
     "associate M&A ENR",
     # Mots-clés supplémentaires adaptés au CV de Mattéo
     "analyste private equity infrastructure",
-    "chargé de financement structuré",
+    "chargé de financements structurés",
     "analyste fusions acquisitions infrastructure",
     "project finance analyst",
     "infrastructure finance",

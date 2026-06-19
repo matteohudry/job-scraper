@@ -34,8 +34,6 @@ RECIPIENT_EMAIL = "matteo.hudry@gmail.com"
 SENDER_EMAIL    = "matteo.hudry@gmail.com"
 import os
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-print(f"DEBUG - Longueur du mot de passe recu : {len(SMTP_PASSWORD)} caracteres")
-print(f"DEBUG - Premier et dernier caractere : '{SMTP_PASSWORD[:1]}' ... '{SMTP_PASSWORD[-1:]}'")
 
 KEYWORDS = [
     "contrôleur de gestion",

@@ -2,8 +2,8 @@ name: Job Scraper à 12h (France)
 
 on:
   schedule:
-    # 10h UTC = 12h en été (UTC+2)
-    - cron: '0 10 * * *'
+    # 8h UTC = 10h en été (UTC+2) lundi à vendredi
+    - cron: '0 8 * * 1-5'
   workflow_dispatch:  # Pour lancer manuellement
 
 jobs:

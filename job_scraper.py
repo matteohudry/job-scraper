@@ -24,7 +24,7 @@ import schedule
 import logging
 import json
 import re
-from urllib.parse import urlencode, quote_plus
+from urllib.parse import urlencode, quote_plus, urlparse, urlunparse
 
 # ──────────────────────────────────────────────
 # CONFIGURATION
@@ -32,8 +32,7 @@ from urllib.parse import urlencode, quote_plus
 
 RECIPIENT_EMAIL = "matteo.hudry@gmail.com"
 SENDER_EMAIL    = "matteo.hudry@gmail.com"
-import os
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_PASSWORD   = "VOTRE_MOT_DE_PASSE_APPLICATION_GMAIL"  # <-- à remplir
 
 KEYWORDS = [
     "contrôleur de gestion",
@@ -48,7 +47,7 @@ KEYWORDS = [
     "associate M&A ENR",
     # Mots-clés supplémentaires adaptés au CV de Mattéo
     "analyste private equity infrastructure",
-    "chargé de financements structurés",
+    "chargé de financement structuré",
     "analyste fusions acquisitions infrastructure",
     "project finance analyst",
     "infrastructure finance",
@@ -294,9 +293,51 @@ SCRAPERS = [
 ]
 
 
+def normalize_url(url: str) -> str:
+    """
+    Normalise une URL pour la déduplication :
+    - retire les paramètres de tracking (utm_*, ?ref=, etc.)
+    - retire le slash final
+    - met en minuscule le host
+    """
+    if not url:
+        return ""
+    try:
+        parsed = urlparse(url)
+        # On ne garde que scheme + host + path (on jette query string et fragment,
+        # qui contiennent souvent des paramètres de tracking variables selon la recherche)
+        clean_path = parsed.path.rstrip("/")
+        normalized = urlunparse((
+            parsed.scheme.lower(),
+            parsed.netloc.lower(),
+            clean_path,
+            "", "", "",
+        ))
+        return normalized
+    except Exception:
+        return url.strip().lower()
+
+
+def normalize_text(text: str) -> str:
+    """Normalise un texte (titre, entreprise) pour comparaison : minuscule, espaces compactés."""
+    if not text:
+        return ""
+    return re.sub(r"\s+", " ", text.strip().lower())
+
+
 def collect_all_jobs() -> list[dict]:
-    seen_urls = set()
-    all_jobs = []
+    """
+    Collecte toutes les offres et déduplique selon deux critères cumulés :
+    1. URL normalisée (sans paramètres de tracking)
+    2. Combinaison (titre + entreprise) normalisée, au cas où la même offre
+       est exposée sous deux URLs différentes par le même site.
+
+    Quand une offre déjà vue réapparaît sous un autre mot-clé, on enrichit
+    son champ 'keyword' au lieu de créer un doublon.
+    """
+    seen_url_keys: dict[str, dict] = {}
+    seen_title_company_keys: dict[str, dict] = {}
+    all_jobs: list[dict] = []
 
     for keyword in KEYWORDS:
         for location in LOCATIONS:
@@ -304,11 +345,36 @@ def collect_all_jobs() -> list[dict]:
             for scraper in SCRAPERS:
                 results = scraper(keyword, location)
                 for job in results:
-                    url = job.get("url", "")
-                    if url and url not in seen_urls:
-                        seen_urls.add(url)
-                        job["keyword"] = keyword
-                        all_jobs.append(job)
+                    raw_url = job.get("url", "")
+                    url_key = normalize_url(raw_url)
+                    title_company_key = (
+                        normalize_text(job.get("title", "")),
+                        normalize_text(job.get("company", "")),
+                        job.get("source", ""),
+                    )
+
+                    existing = None
+                    if url_key and url_key in seen_url_keys:
+                        existing = seen_url_keys[url_key]
+                    elif all(title_company_key) and title_company_key in seen_title_company_keys:
+                        existing = seen_title_company_keys[title_company_key]
+
+                    if existing:
+                        # Offre déjà connue : on ajoute juste le mot-clé s'il est nouveau
+                        existing_keywords = existing.setdefault("keywords", [existing.get("keyword", "")])
+                        if keyword not in existing_keywords:
+                            existing_keywords.append(keyword)
+                        continue
+
+                    # Nouvelle offre
+                    job["keyword"] = keyword
+                    job["keywords"] = [keyword]
+                    all_jobs.append(job)
+                    if url_key:
+                        seen_url_keys[url_key] = job
+                    if all(title_company_key):
+                        seen_title_company_keys[title_company_key] = job
+
                 time.sleep(1)  # politesse envers les serveurs
 
     log.info(f"Total offres collectées (dédupliquées) : {len(all_jobs)}")
@@ -372,7 +438,7 @@ def build_html_email(jobs: list[dict]) -> str:
                 <span style="font-size:13px;color:#888;">{j['location']}</span>
                 {f'&nbsp;·&nbsp;<span style="font-size:12px;color:#aaa;">{j["date"]}</span>' if j.get("date") else ""}
                 <br>
-                <span style="font-size:11px;color:#aaa;">Mot-clé : {j.get('keyword','')}</span>
+                <span style="font-size:11px;color:#aaa;">Mots-clés : {", ".join(j.get('keywords', [j.get('keyword','')]))}</span>
               </td>
             </tr>"""
 
@@ -444,7 +510,7 @@ def send_email(jobs: list[dict]) -> None:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
             smtp.login(SENDER_EMAIL, SMTP_PASSWORD)
             smtp.sendmail(SENDER_EMAIL, RECIPIENT_EMAIL, msg.as_string())
-        log.info(f"Email envoye : {len(jobs)} offres -> {RECIPIENT_EMAIL}")
+        log.info(f"Email envoyé : {len(jobs)} offres → {RECIPIENT_EMAIL}")
     except Exception as e:
         log.error(f"Échec envoi email : {e}")
 
@@ -466,4 +532,15 @@ def daily_job() -> None:
 # ──────────────────────────────────────────────
 
 if __name__ == "__main__":
+    log.info("Script démarré. Email quotidien programmé à 12h00.")
+
+    # Lancement immédiat au démarrage pour tester
+    log.info("Exécution immédiate au démarrage…")
     daily_job()
+
+    # Puis chaque jour à midi
+    schedule.every().day.at("12:00").do(daily_job)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(60)

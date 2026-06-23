@@ -32,7 +32,8 @@ from urllib.parse import urlencode, quote_plus, urlparse, urlunparse
 
 RECIPIENT_EMAIL = "matteo.hudry@gmail.com"
 SENDER_EMAIL    = "matteo.hudry@gmail.com"
-SMTP_PASSWORD   = "VOTRE_MOT_DE_PASSE_APPLICATION_GMAIL"  # <-- à remplir
+import os
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 
 KEYWORDS = [
     "contrôleur de gestion",
